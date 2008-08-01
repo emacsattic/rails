@@ -1,10 +1,13 @@
-;;; rails-ui.el --- user interface for emacs-rails
+;;; rails-ui.el --- emacs-rails user interface
 
-;; Copyright (C) 2006 Galinsky Dmitry <dima dot exe at gmail dot com>
+;; Copyright (C) 2006 Dmitry Galinsky <dima dot exe at gmail dot com>
 
-;; Authors: Galinsky Dmitry <dima dot exe at gmail dot com>,
+;; Authors: Dmitry Galinsky <dima dot exe at gmail dot com>,
 ;;          Rezikov Peter <crazypit13 (at) gmail.com>
+
 ;; Keywords: ruby rails languages oop
+;; $URL$
+;; $Id$
 
 ;;; License
 
@@ -25,401 +28,293 @@
 
 ;;;;;;;;;; Some init code ;;;;;;;;;;
 
-(unless (boundp 'html-mode-abbrev-table)
-  (setq html-mode-abbrev-table (make-abbrev-table)))
-(unless (boundp 'html-helper-mode-abbrev-table)
-  (setq html-helper-mode-abbrev-table (make-abbrev-table)))
+(defconst rails-minor-mode-log-menu-bar-map
+  (let ((map (make-sparse-keymap)))
+    (define-keys map
+      ([test]      '("test.log"         . rails-log:open-test))
+      ([pro]       '("production.log"   . rails-log:open-production))
+      ([dev]       '("development.log"  . rails-log:open-development))
+      ([separator] '("---"))
+      ([open]      '("Open Log File..." . rails-log:open)))
+    map))
 
-;;;;;;;;;; Interface ;;;;;;;;;;
+(defconst rails-minor-mode-config-menu-bar-map
+  (let ((map (make-sparse-keymap)))
+    (define-keys map
+      ([routes]      '("routes.rb" .
+                       (lambda () (interactive)
+                         (rails-core:find-file "config/routes.rb"))))
+      ([environment] '("environment.rb" .
+                       (lambda() (interactive)
+                         (rails-core:find-file "config/environment.rb"))))
+      ([database]    '("database.yml" .
+                       (lambda() (interactive)
+                         (rails-core:find-file "config/database.yml"))))
+      ([boot]        '("boot.rb" .
+                       (lambda() (interactive)
+                         (rails-core:find-file "config/boot.rb"))))
+      ([env] (cons "environments" (make-sparse-keymap "environments")))
+      ([env test]        '("test.rb" .
+                           (lambda() (interactive)
+                             (rails-core:find-file "config/environments/test.rb"))))
+      ([env production]  '("production.rb" .
+                           (lambda() (interactive)
+                             (rails-core:find-file "config/environments/production.rb"))))
+      ([env development] '("development.rb" .
+                           (lambda()(interactive)
+                             (rails-core:find-file "config/environments/development.rb")))))
+    map))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Rails snips ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defconst rails-minor-mode-nav-menu-bar-map
+  (let ((map (make-sparse-keymap)))
+    (define-keys map
+      ([goto-fixtures]    '("Go to Fixtures"         . rails-nav:goto-fixtures))
+      ([goto-plugins]     '("Go to Plugins"          . rails-nav:goto-plugins))
+      ([goto-migrate]     '("Go to Migrations"       . rails-nav:goto-migrate))
+      ([goto-layouts]     '("Go to Layouts"          . rails-nav:goto-layouts))
+      ([goto-stylesheets] '("Go to Stylesheets"      . rails-nav:goto-stylesheets))
+      ([goto-javascripts] '("Go to Javascripts"      . rails-nav:goto-javascripts))
+      ([goto-helpers]     '("Go to Helpers"          . rails-nav:goto-helpers))
+      ([goto-mailers]     '("Go to Mailers"          . rails-nav:goto-mailers))
+      ([goto-observers]   '("Go to Observers"        . rails-nav:goto-observers))
+      ([goto-unit-tests]  '("Go to Unit Tests"       . rails-nav:goto-unit-tests))
+      ([goto-func-tests]  '("Go to Functional Tests" . rails-nav:goto-functional-tests))
+      ([goto-models]      '("Go to Models"           . rails-nav:goto-models))
+      ([goto-controllers] '("Go to Controllers"      . rails-nav:goto-controllers)))
+    map))
 
+(defconst rails-minor-mode-tests-menu-bar-map
+  (let ((map (make-sparse-keymap)))
+    (define-keys map
+      ([integration] '("Integration Tests" . rails-test:run-integration))
+      ([unit]        '("Unit Tests"        . rails-test:run-units))
+      ([functional]  '("Functional Tests"  . rails-test:run-functionals))
+      ([recent]      '("Recent Tests"      . rails-test:run-recent))
+      ([tests]       '("All"               . rails-test:run-all))
+      ([separator]   '("--"))
+      ([toggle]      '(menu-item "Toggle Output Window" rails-script:toggle-output-window
+                                 :enable (get-buffer rails-script:buffer-name)))
+      ([run-current] '("Test Current Model/Controller/Mailer" . rails-test:run-current))
+      ([run]         '("Run Tests ..."                        . rails-test:run)))
+    map))
 
-(def-snips (ruby-mode-abbrev-table)
-  ("ra"      "render :action => \"$${action}\""
-             "render (action)\t(ra)")
-  ("ral"     "render :action => \"$${action}\", :layout => \"$${layoutname}\""
-             "render (action,layout)\t(ral)")
-  ("rf"      "render :file => \"$${filepath}\""
-             "render (file)\t(rf)")
-  ("rfu"     "render :file => \"$${filepath}\", :use_full_path => $${false}"
-             "render (file,use_full_path)\t(rfu)")
-  ("ri"      "render :inline => \"$${<%= 'hello' %>}\""
-             "render (inline)\t(ri)")
-  ("ril"     "render :inline => \"$${<%= 'hello' %>}\", :locals => { $${name} => \"$${value}\" }"
-             "render (inline,locals)\t(ril)")
-  ("rit"     "render :inline => \"$${<%= 'hello' %>}\", :type => :$${rxml})"
-             "render (inline,type)\t(rit)")
-  ("rl"      "render :layout => \"$${layoutname}\""
-             "render (layout)\t(rl)")
-  ("rn"      "render :nothing => $${true}"
-             "render (nothing)\t(rn)")
-  ("rns"     "render :nothing => $${true}, :status => $${401}"
-             "render (nothing,status)\t(rns)")
-  ("rp"      "render :partial => \"$${item}\""
-             "render (partial)\t(rp)")
-  ("rpc"     "render :partial => \"$${item}\", :collection => $${items}"
-             "render (partial,collection)\t(rpc)")
-  ("rpl"     "render :partial => \"$${item}\", :locals => { :$${name} => \"$${value}\"}"
-             "render (partial,locals)\t(rpl)")
-  ("rpo"     "render :partial => \"$${item}\", :object => $${object}"
-             "render (partial,object)\t(rpo)")
-  ("rps"     "render :partial => \"$${item}\", :status => $${500}"
-             "render (partial,status)\t(rps)")
-  ("rt"      "render :text => \"$${Text here...}\""
-             "render (text)\t(rt)")
-  ("rtl"     "render :text => \"$${Text here...}\", :layout => \"$${layoutname}\""
-             "render (text,layout)\t(rtl)")
-  ("rtlt"    "render :text => \"$${Text here...}\", :layout => $${true}"
-             "render (text,layout => true)\t(rtlt)")
-  ("rts"     "render :text => \"$${Text here...}\", :status => $${401}"
-             "")
-  ("rcea"    "render_component :action => \"$${index}\""
-             "render_component (action)\t(rcea)")
-  ("rcec"    "render_component :controller => \"$${items}\""
-             "render_component (controller)\t(rcec)")
-  ("rceca"   "render_component :controller => \"$${items}\", :action => \"$${index}\""
-             "render_component (controller, action)\t(rceca)")
-  ("rea"     "redirect_to :action => \"$${index}\""
-             "redirect_to (action)\t(rea)")
-  ("reai"    "redirect_to :action => \"$${show}\", :id => $${@item}"
-             "redirect_to (action, id)\t(reai)")
-  ("rec"     "redirect_to :controller => \"$${items}\""
-             "redirect_to (controller)\t(rec)")
-  ("reca"    "redirect_to :controller => \"$${items}\", :action => \"$${list}\""
-             "redirect_to (controller, action)\t(reca)")
-  ("recai"   "redirect_to :controller => \"$${items}\", :action => \"$${show}\", :id => $${@item}"
-             "redirect_to (controller, action, id)\t(recai)")
-  ("flash"   "flash[:$${notice}] = \"$${Text here...}\""
-             "flash[...]\t(flash)")
-  ("logi"    "logger.info \"$${Text here...}\""
-             "logger.info\t(logi)")
-  ("par"     "params[:$${id}]"
-             "params[...]\t(par)")
-  ("ses"     "session[:$${user}]"
-             "session[...]\t(ses)")
-  ("belongs" "belongs_to :$${model}, :class_name => \"$${class}\", :foreign_key => \"$${key}\""
-             "belongs_to (class_name,foreign_key)\t(belongs)")
-  ("many"    "has_many :$${model}, :class_name => \"$${class}\", :foreign_key => \"$${key}\", :dependent => :$${destroy}"
-             "has_many (class_name,foreign_key,dependent)\t(many)")
-  ("one"     "has_one :$${model}, :class_name => \"$${class}\", :foreign_key => \"$${key}\", :dependent => :$${destroy}"
-             "has_one (class_name,foreign_key,dependent)\t(one)")
-  ("valpres" "validates_presence_of :$${attr}"
-             "validates_presence_of\t(valpres)")
-  ("valuniq" "validates_uniqueness_of :$${attr}"
-             "validates_uniqueness_of\t(valuniq)")
-  ("valnum"  "validates_numericality_of :$${attr}"
-             "validates_numericality_of\t(valnum)")
-  ("bp" "breakpoint" "")
-  ;; Migrations
-  ("mct"     "create_table :$${name} do |t|\n$>$.\nend"
-             "create_table (table)\t(mct)")
-  ("mctf"    "create_table :$${name}, :force => true do |t|\n$>$.\nend"
-             "create_table (table, force)\t(mctf)")
-  ("mdt"     "drop_table :$${name}"
-             "drop_table (table)\t(mdt)")
-  ("mtcl"    "t.column \"$${name}\", :$${type}"
-             "t.column (column)\t(mtcl)")
-  ("mac"     "add_column :$${table_name}, :$${column_name}, :$${type}"
-             "add_column (table, column, type)\t(mac)")
-  ("mcc"     "change_column :$${table_name}, :$${column_name}, :$${type}"
-             "change_column (table, column, type)\t(mcc)")
-  ("mrec"    "rename_column :$${table_name}, :$${column_name}, :$${new_column_name}"
-             "rename_column (table, name, new_name)\t(mrec)")
-  ("mrmc"    "remove_column :$${table_name}, :$${column_name}"
-             "remove_column (table, column)\t(mrmc)")
-  ("mai"     "add_index :$${table_name}, :$${column_name}"
-             "add_index (table, column)\t(mai)")
-  ("mait"    "add_index :$${table_name}, :$${column_name}, :$${index_type}"
-             "add_index (table, column, type)\t(mait)")
-  ("mrmi"    "remove_index :$${table_name}, :$${column_name}"
-             "remove_index (table, column)\t(mrmi)"))
-
-
-;;;; ERB Snips ;;;;
-
-
-(def-snips (html-mode-abbrev-table html-helper-mode-abbrev-table)            
-  ("ft"      "<%= form_tag :action => \"$${update}\" %>\n$.\n<%= end_form_tag %>"
-             "form_tag\t(ft)")
-  ("lia"     "<%= link_to \"$${title}\", :action => \"$${index}\" %>"
-             "link_to (action)\t(lia)")
-  ("liai"    "<%= link_to \"$${title}\", :action => \"$${edit}\", :id => $${@item} %>"
-             "link_to (action, id)\t(liai)")
-  ("lic"     "<%= link_to \"$${title}\", :controller => \"$${items}\" %>"
-             "link_to (controller)\t(lic)")
-  ("lica"    "<%= link_to \"$${title}\", :controller => \"$${items}\", :action => \"$${index}\" %>"
-             "link_to (controller, action)\t(lica)")
-  ("licai"   "<%= link_to \"$${title}\", :controller => \"$${items}\", :action => \"$${edit}\", :id => $${@item} %>"
-             "link_to (controller, action, id)\t(licai)")
-  ("%h"      "<%=h $${@item} %>"
-             "<% h ... %>\t(%h)")
-  ("%if"     "<% if $${cond} -%>\n$.\n<% end -%>"
-             "<% if/end %>\t(%if)")
-  ("%ifel"   "<% if $${cond} -%>\n$.\n<% else -%>\n<% end -%>"
-             "<% if/else/end %>\t(%ifel)")
-  ("%unless" "<% unless $${cond} -%>\n$.\n<% end -%>"
-             "<% unless/end %>\t(%unless)")
-  ("%"       "<% $. -%>"
-             "<% ... %>\t(%)")
-  ("%%"      "<%= $. %>"
-             "<%= ... %>\t(%%)"))
-
-;;;;;;;;;; Menu ;;;;;;;;;;
+(defconst rails-minor-mode-db-menu-bar-map
+  (let ((map (make-sparse-keymap)))
+    (define-keys map
+      ([clone-db]    '("Clone Development DB to Test DB" . rails-rake:clone-development-db-to-test-db))
+      ([load-schema] '("Load schema.rb to DB"               . (lambda() (interactive) (rails-rake:task "db:schema:load"))))
+      ([dump-schema] '("Dump DB to schema.rb"               . (lambda() (interactive) (rails-rake:task "db:schema:dump"))))
+      ([sep]         '("--"))
+      ([prev]        '("Migrate to Previous Version" . rails-rake:migrate-to-prev-version))
+      ([version]     '("Migrate to Version ..."      . rails-rake:migrate-to-version))
+      ([migrate]     '("Migrate"                     . rails-rake:migrate)))
+    map))
 
 (define-keys rails-minor-mode-menu-bar-map
-  ([rails] (cons "RubyOnRails" (make-sparse-keymap "RubyOnRails")))
-  ([rails svn-status]
-   '(menu-item "SVN status"
-	       (lambda()
-		 (interactive)
-		 (rails-svn-status)
-		 :enable (rails-core:root))))
-  ([rails tag] '("Update TAGS file" . rails-create-tags))
-  ([rails ri] '("Search documentation" . rails-search-doc))
-  ([rails sql] '("SQL Rails buffer" . rails-run-sql))
-  ([rails breakpointer] '("Run breakpointer" . rails-run-breakpointer))
-  ([rails console] '("Run Rails console" . rails-run-console))
-  ([rails brows] '("Open browser..." . rails-open-browser-on-controller))
-  ([rails auto-brows] '("Open browser on current action" . rails-auto-open-browser))
-  ([rails create-project] '("Create new project" . rails-create-project))
-  ([rails separator] '("--"))
 
-  ([rails gen] (cons "Generators" (make-sparse-keymap "Generators")))
-  ([rails gen migration] '("Migration" . rails-generate-migration))
-  ([rails gen scaffold] '("Scaffold" . rails-generate-scaffold))
-  ([rails gen model] '("Model" . rails-generate-model))
-  ([rails gen controller] '("Controller" . rails-generate-controller))
+  ([rails] (cons "RoR" (make-sparse-keymap "RubyOnRails")))
 
-  ([rails destr] (cons "Destroy" (make-sparse-keymap "Generators")))
-  ([rails destr controller] '("Controller" . rails-destroy-controller))
-  ([rails destr model] '("Model" . rails-destroy-model))
-  ([rails destr scaffold] '("Scaffold" . rails-destroy-scaffold))
+  ([rails rails-customize] '("Customize" . (lambda () (interactive) (customize-group 'rails))))
+  ([rails separator0] '("--"))
+  ([rails svn-status]        '("SVN Status"             . rails-svn-status-into-root))
+  ([rails api-doc]           '("Rails API Doc at Point" . rails-browse-api-at-point))
+  ([rails sql]               '("SQL Rails Buffer"       . rails-run-sql))
+  ([rails tag]               '("Update TAGS File"       . rails-create-tags))
+  ([rails ri]                '("Search Documentation"   . rails-search-doc))
+  ([rails goto-file-by-line] '("Go to File by Line"     . rails-goto-file-on-current-line))
+  ([rails switch-file-menu]  '("Switch file Menu..."    . rails-lib:run-secondary-switch))
+  ([rails switch-file]       '("Switch File"            . rails-lib:run-primary-switch))
+  ([rails separator1]        '("--"))
 
-  ([rails snip] (cons "Snippets" (make-sparse-keymap "Snippets")))
-  ([rails snip render] (cons "render" (make-sparse-keymap "render")))
-  ([rails snip render sk-ra]  (snippet-menu-line 'ruby-mode-abbrev-table "ra"))
-  ([rails snip render sk-ral] (snippet-menu-line 'ruby-mode-abbrev-table "ral"))
-  ([rails snip render sk-rf]  (snippet-menu-line 'ruby-mode-abbrev-table "rf"))
-  ([rails snip render sk-rfu] (snippet-menu-line 'ruby-mode-abbrev-table "rfu"))
-  ([rails snip render sk-ri]  (snippet-menu-line 'ruby-mode-abbrev-table "ri"))
-  ([rails snip render sk-ril] (snippet-menu-line 'ruby-mode-abbrev-table "ril"))
-  ([rails snip render sk-rit] (snippet-menu-line 'ruby-mode-abbrev-table "rit"))
-  ([rails snip render sk-rl]  (snippet-menu-line 'ruby-mode-abbrev-table "rl"))
-  ([rails snip render sk-rn]  (snippet-menu-line 'ruby-mode-abbrev-table "rn"))
-  ([rails snip render sk-rns] (snippet-menu-line 'ruby-mode-abbrev-table "rns"))
-  ([rails snip render sk-rp]  (snippet-menu-line 'ruby-mode-abbrev-table "rp"))
-  ([rails snip render sk-rpc] (snippet-menu-line 'ruby-mode-abbrev-table "rpc"))
-  ([rails snip render sk-rpl] (snippet-menu-line 'ruby-mode-abbrev-table "rpl"))
-  ([rails snip render sk-rpo] (snippet-menu-line 'ruby-mode-abbrev-table "rpo"))
-  ([rails snip render sk-rps] (snippet-menu-line 'ruby-mode-abbrev-table "rps"))
-  ([rails snip render sk-rt] (snippet-menu-line 'ruby-mode-abbrev-table "rt"))
-  ([rails snip render sk-rtl] (snippet-menu-line 'ruby-mode-abbrev-table "rtl"))
-  ([rails snip render sk-rtlt] (snippet-menu-line 'ruby-mode-abbrev-table "rtlt"))
-  ([rails snip render sk-rcea] (snippet-menu-line 'ruby-mode-abbrev-table "rcea"))
-  ([rails snip render sk-rcec] (snippet-menu-line 'ruby-mode-abbrev-table "rcec"))
-  ([rails snip render sk-rceca] (snippet-menu-line 'ruby-mode-abbrev-table "rceca"))
+  ([rails scr] (cons "Scripts" (make-sparse-keymap "Scripts")))
 
-  ([rails snip redirect_to] (cons "redirect_to" (make-sparse-keymap "redirect_to")))
-  ([rails snip redirect_to sk-rea] (snippet-menu-line 'ruby-mode-abbrev-table "rea"))
-  ([rails snip redirect_to sk-reai] (snippet-menu-line 'ruby-mode-abbrev-table "reai"))
-  ([rails snip redirect_to sk-rec] (snippet-menu-line 'ruby-mode-abbrev-table "rec"))
-  ([rails snip redirect_to sk-reca] (snippet-menu-line 'ruby-mode-abbrev-table "reca"))
-  ([rails snip redirect_to sk-recai] (snippet-menu-line 'ruby-mode-abbrev-table "recai"))
+  ([rails scr gen] (cons "Generate" (make-sparse-keymap "Generate")))
+  ([rails scr destr] (cons "Destroy" (make-sparse-keymap "Generators")))
 
-  ([rails snip controller] (cons "controller" (make-sparse-keymap "controller")))
-  ([rails snip controller sk-flash] (snippet-menu-line 'ruby-mode-abbrev-table "flash"))
-  ([rails snip controller sk-logi] (snippet-menu-line 'ruby-mode-abbrev-table "logi"))
-  ([rails snip controller sk-params] (snippet-menu-line 'ruby-mode-abbrev-table "par"))
-  ([rails snip controller sk-session] (snippet-menu-line 'ruby-mode-abbrev-table "ses"))
+  ([rails scr destr resource]   '("Resource"        . rails-script:destroy-resource))
+  ([rails scr destr observer]   '("Observer"        . rails-script:destroy-observer))
+  ([rails scr destr mailer]     '("Mailer"          . rails-script:destroy-mailer))
+  ([rails scr destr plugin]     '("Plugin"          . rails-script:destroy-plugin))
+  ([rails scr destr migration]  '("Migration"       . rails-script:destroy-migration))
+  ([rails scr destr scaffold]   '("Scaffold"        . rails-script:destroy-scaffold))
+  ([rails scr destr model]      '("Model"           . rails-script:destroy-model))
+  ([rails scr destr controller] '("Controller"      . rails-script:destroy-controller))
+  ([rails scr destr separator]  '("--"))
+  ([rails scr destr run]        '("Run Destroy ..." . rails-script:destroy))
 
-  ([rails snip model] (cons "model" (make-sparse-keymap "model")))
-  ([rails snip model sk-belongs_to] (snippet-menu-line 'ruby-mode-abbrev-table "belongs"))
-  ([rails snip model sk-has_many] (snippet-menu-line 'ruby-mode-abbrev-table "many"))
-  ([rails snip model sk-has_one] (snippet-menu-line 'ruby-mode-abbrev-table "one"))
-  ([rails snip model sk-val_pres] (snippet-menu-line 'ruby-mode-abbrev-table "valpres"))
-  ([rails snip model sk-val_uniq] (snippet-menu-line 'ruby-mode-abbrev-table "valuniq"))
-  ([rails snip model sk-val_num] (snippet-menu-line 'ruby-mode-abbrev-table "valnum"))
-  ([rails snip migrations] (cons "migrations" (make-sparse-keymap "model")))
-  ([rails snip migrations mct] (snippet-menu-line 'ruby-mode-abbrev-table "mct"))
-  ([rails snip migrations mctf] (snippet-menu-line 'ruby-mode-abbrev-table "mctf"))
-  ([rails snip migrations mdt] (snippet-menu-line 'ruby-mode-abbrev-table "mdt"))
-  ([rails snip migrations mtcl] (snippet-menu-line 'ruby-mode-abbrev-table "mtcl"))
-  ([rails snip migrations mac] (snippet-menu-line 'ruby-mode-abbrev-table "mac"))
-  ([rails snip migrations mcc] (snippet-menu-line 'ruby-mode-abbrev-table "mcc"))
-  ([rails snip migrations mrec] (snippet-menu-line 'ruby-mode-abbrev-table "mrec"))
-  ([rails snip migrations mrmc] (snippet-menu-line 'ruby-mode-abbrev-table "mrmc"))
-  ([rails snip migrations mai] (snippet-menu-line 'ruby-mode-abbrev-table "mai"))
-  ([rails snip migrations mait] (snippet-menu-line 'ruby-mode-abbrev-table "mait"))
-  ([rails snip migrations mrmi] (snippet-menu-line 'ruby-mode-abbrev-table "mrmi"))
+  ([rails scr gen resource]   '("Resource"         . rails-script:generate-resource))
+  ([rails scr gen observer]   '("Observer"         . rails-script:generate-observer))
+  ([rails scr gen mailer]     '("Mailer"           . rails-script:generate-mailer))
+  ([rails scr gen plugin]     '("Plugin"           . rails-script:generate-plugin))
+  ([rails scr gen migration]  '("Migration"        . rails-script:generate-migration))
+  ([rails scr gen scaffold]   '("Scaffold"         . rails-script:generate-scaffold))
+  ([rails scr gen model]      '("Model"            . rails-script:generate-model))
+  ([rails scr gen controller] '("Controller"       . rails-script:generate-controller))
+  ([rails scr gen separator]  '("--"))
+  ([rails scr gen run]        '("Run Generate ..." . rails-script:generate))
 
-  ([rails snip rhtml] (cons "rhtml" (make-sparse-keymap "rhtml")))
-  ([rails snip rhtml sk-erb-ft] (snippet-menu-line 'html-mode-abbrev-table "ft"))
-  ([rails snip rhtml sk-erb-lia] (snippet-menu-line 'html-mode-abbrev-table "lia"))
-  ([rails snip rhtml sk-erb-liai] (snippet-menu-line 'html-mode-abbrev-table "liai"))
-  ([rails snip rhtml sk-erb-lic] (snippet-menu-line 'html-mode-abbrev-table "lic"))
-  ([rails snip rhtml sk-erb-lica] (snippet-menu-line 'html-mode-abbrev-table "lica"))
-  ([rails snip rhtml sk-erb-licai] (snippet-menu-line 'html-mode-abbrev-table "licai"))
-  ([rails snip rhtml sk-erb-h] (snippet-menu-line 'html-mode-abbrev-table "%h"))
-  ([rails snip rhtml sk-erb-if] (snippet-menu-line 'html-mode-abbrev-table "%if"))
-  ([rails snip rhtml sk-erb-unless] (snippet-menu-line 'html-mode-abbrev-table "%unless"))
-  ([rails snip rhtml sk-erb-ifel] (snippet-menu-line 'html-mode-abbrev-table "%ifel"))
-  ([rails snip rhtml sk-erb-block] (snippet-menu-line 'html-mode-abbrev-table "%"))
-  ([rails snip rhtml sk-erb-echo-block] (snippet-menu-line 'html-mode-abbrev-table "%%"))
+  ([rails scr break]   '("Breakpointer"         . rails-script:breakpointer))
+  ([rails scr console] '("Console"              . rails-script:console))
+  ([rails scr rake]    '("Rake..."              . rails-rake:task))
 
-  ([rails log] (cons "Open log" (make-sparse-keymap "Open log")))
+  ([rails nav]    (cons "Navigation"    rails-minor-mode-nav-menu-bar-map))
+  ([rails config] (cons "Configuration" rails-minor-mode-config-menu-bar-map))
+  ([rails log]    (cons "Log Files"     rails-minor-mode-log-menu-bar-map))
 
-  ([rails log test]
-   '("test.log" . (lambda() (interactive) (rails-open-log "test"))))
-  ([rails log pro]
-   '("production.log" . (lambda() (interactive) (rails-open-log "production"))))
-  ([rails log dev]
-   '("development.log" . (lambda() (interactive) (rails-open-log "development"))))
-  ([rails log log] '("open log..." . rails-open-log))
+  ([rails ws] (cons "WebServer" (make-sparse-keymap "WebServer")))
 
-  ([rails config] (cons "Configuration" (make-sparse-keymap "Configuration")))
+  ([rails ws use-webrick]  '(menu-item "Use WEBrick" (lambda() (interactive)
+                                                       (rails-ws:switch-default-server-type "webrick"))
+                                       :button (:toggle . (rails-ws:default-server-type-p "webrick"))))
+  ([rails ws use-lighttpd] '(menu-item "Use Lighty" (lambda() (interactive)
+                                                      (rails-ws:switch-default-server-type "lighttpd"))
+                                       :button (:toggle . (rails-ws:default-server-type-p "lighttpd"))))
+  ([rails ws use-mongrel]  '(menu-item "Use Mongrel" (lambda() (interactive)
+                                                       (rails-ws:switch-default-server-type "mongrel"))
+                                       :button (:toggle . (rails-ws:default-server-type-p "mongrel"))))
+  ([rails ws use-thin]  '(menu-item "Use Thin" (lambda() (interactive)
+                                                    (rails-ws:switch-default-server-type "thin"))
+                                       :button (:toggle . (rails-ws:default-server-type-p "thin"))))
+  ([rails ws separator] '("--"))
 
-  ([rails config routes]
-   '("routes.rb" . (lambda ()
-		     (interactive)
-		     (rails-open-config "routes.rb"))))
-  ([rails config environment]
-   '("environment.rb" .
-     (lambda()
-       (interactive)
-       (rails-open-config "environment.rb"))))
-  ([rails config database]
-   '("database.yml" .
-     (lambda()
-       (interactive)
-       (rails-open-config "database.yml"))))
-  ([rails config boot]
-   '("boot.rb" .
-     (lambda()
-       (interactive)
-       (rails-open-config "boot.rb"))))
+  ([rails ws brows]      '(menu-item "Open Browser..." rails-ws:open-browser-on-controller
+                                     :enable (rails-ws:running-p)))
+  ([rails ws auto-brows] '(menu-item "Open Browser on Current Action" rails-ws:auto-open-browser
+                                     :enable (rails-ws:running-p)))
+  ([rails ws url]        '(menu-item "Open Browser" rails-ws:open-browser
+                                     :enable (rails-ws:running-p)))
+  ([rails ws separator2] '("--"))
 
-  ([rails config env] (cons "environments" (make-sparse-keymap "environments")))
-  ([rails config env test]
-   '("test.rb" .
-     (lambda()
-       (interactive)
-       (rails-open-config "environments/test.rb"))))
-  ([rails config env production]
-   '("production.rb" .
-     (lambda()
-       (interactive)
-       (rails-open-config "environments/production.rb"))))
-  ([rails config env development]
-   '("development.rb" .
-     (lambda()
-       (interactive)
-       (rails-open-config "environments/development.rb"))))
-  ([rails config config] '("open config..." . rails-open-config))
+  ([rails ws test]        '(menu-item "Start Test" rails-ws:start-test
+                                      :enable (not (rails-ws:running-p))))
+  ([rails ws production]  '(menu-item "Start Production" rails-ws:start-production
+                                      :enable (not (rails-ws:running-p))))
+  ([rails ws development] '(menu-item "Start Development" rails-ws:start-development
+                                      :enable (not (rails-ws:running-p))))
+  ([rails ws separator3] '("--"))
 
-  ([rails webrick] (cons "WEBrick" (make-sparse-keymap "WEBrick")))
+  ([rails ws status]  '(menu-item "Print Status"                                     rails-ws:print-status))
+  ([rails ws default] '(menu-item "Start/Stop Web Server (With Default Environment)" rails-ws:toggle-start-stop))
+  )
 
-  ([rails webrick mongrel]
-   '(menu-item "Use Mongrel" rails-toggle-use-mongrel
-	       :enable (not (rails-webrick-process-status))
-	       :button (:toggle
-			. (and (boundp 'rails-use-mongrel)
-			       rails-use-mongrel))))
+(defcustom rails-minor-mode-prefix-key "\C-c"
+  "Key prefix for rails minor mode."
+  :group 'rails)
 
-  ([rails webrick separator] '("--"))
+(defmacro rails-key (key)
+  `(kbd ,(concat rails-minor-mode-prefix-key " " key)))
 
-  ([rails webrick buffer]
-   '(menu-item "Show buffer"
-	       rails-webrick-open-buffer
-	       :enable (rails-webrick-process-status)))
-  ([rails webrick url]
-   '(menu-item "Open browser"
-	       rails-webrick-open-browser
-	       :enable (rails-webrick-process-status)))
-  ([rails webrick stop]
-   '(menu-item "Stop"
-	       rails-webrick-process-stop
-	       :enable (rails-webrick-process-status)))
-  ([rails webrick test]
-   '(menu-item "Start test"
-	       (lambda() (interactive)
-		 (rails-webrick-process "test"))
-	       :enable (not (rails-webrick-process-status))))
-  ([rails webrick production]
-   '(menu-item "Start production"
-	       (lambda() (interactive)
-		 (rails-webrick-process "production"))
-	       :enable (not (rails-webrick-process-status))))
-  ([rails webrick development]
-   '(menu-item "Start development"
-	       (lambda() (interactive)
-		 (rails-webrick-process "development"))
-	       :enable (not (rails-webrick-process-status))))
+(defconst rails-minor-mode-test-current-method-key (rails-key "\C-c ,"))
 
-  ([rails create-helper]
-   '(menu-item "Create helper function"
-	       rails-create-helper-from-block
-	       :enable (rails-is-current-buffer-rhtml)))
-    
-  ([rails create-partial]
-   '(menu-item "Create partial from selection"
-	       rails-create-partial-from-selection
-	       :enable (rails-is-current-buffer-rhtml)))
-
-  ([rails goto-file-by-line] '("Goto file by line" . rails-goto-file-on-current-line))
-  ([rails switch-file-menu] '("Switch file menu..." . rails-goto-file-from-file-with-menu))
-  ([rails switch-file] '("Switch file" . rails-goto-file-from-file)))
-
-
+(defvar rails-minor-mode-map
+  (let ((map (make-keymap)))
+    map))
 
 (define-keys rails-minor-mode-map
   ([menu-bar] rails-minor-mode-menu-bar-map)
-  ((kbd "\C-c p") 'rails-create-partial-from-selection)
-  ((kbd "\C-c b") 'rails-create-helper-from-block)
-  ((kbd "<M-S-down>")  'rails-goto-file-from-file-with-menu)
-  ((kbd "\C-c t")  'rails-goto-file-from-file)
-;;   ((kbd "\C-c t m") 'rails-goto-model)
-;;   ((kbd "\C-c t c") 'rails-goto-controller)
-  ((kbd "\C-c <f4> m") 'rails-goto-model)
-  ((kbd "\C-c <f4> c") 'rails-goto-controller)
-  ((kbd "\C-c <f5>") 'rails-auto-open-browser)
-  ((kbd "\C-c \C-x <f5>") 'rails-open-browser-on-controller)
-  
-  ((kbd "\C-c v") 'rails-svn-status-into-root)
-  ((kbd "\C-c l") 'rails-open-log)
-  ((kbd "\C-c o") 'rails-open-config)
-  ((kbd "\C-c \C-t") 'rails-create-tags)
-  ((kbd "\C-c \C-z") 'rails-run-sql)
-  
-  ;; Scripts
-  ((kbd "\C-c g c") 'rails-generate-controller)
-  ((kbd "\C-c g m") 'rails-generate-model)
-  ((kbd "\C-c g s") 'rails-generate-scaffold)
-  ((kbd "\C-c g i") 'rails-generate-migration)
-  ((kbd "\C-c d c") 'rails-destroy-controller)
-  ((kbd "\C-c d m") 'rails-destroy-model)
-  ((kbd "\C-c d s") 'rails-destroy-scaffold)
-  ((kbd "\C-c z")   'rails-run-console)
-  ((kbd "\C-c \C-b") 'rails-run-breakpointer)
+  ([menu-bar rails-tests] (cons "Tests" rails-minor-mode-tests-menu-bar-map))
+  ([menu-bar rails-db] (cons "Database" rails-minor-mode-db-menu-bar-map))
+
+  ;; Goto
+  ((rails-key "\C-c g m") 'rails-nav:goto-models)
+  ((rails-key "\C-c g c") 'rails-nav:goto-controllers)
+  ((rails-key "\C-c g o") 'rails-nav:goto-observers)
+  ((rails-key "\C-c g n") 'rails-nav:goto-mailers)
+  ((rails-key "\C-c g h") 'rails-nav:goto-helpers)
+  ((rails-key "\C-c g l") 'rails-nav:goto-layouts)
+  ((rails-key "\C-c g s") 'rails-nav:goto-stylesheets)
+  ((rails-key "\C-c g j") 'rails-nav:goto-javascripts)
+  ((rails-key "\C-c g g") 'rails-nav:goto-migrate)
+  ((rails-key "\C-c g p") 'rails-nav:goto-plugins)
+  ((rails-key "\C-c g x") 'rails-nav:goto-fixtures)
+  ((rails-key "\C-c g f") 'rails-nav:goto-functional-tests)
+  ((rails-key "\C-c g u") 'rails-nav:goto-unit-tests)
+
+  ;; Switch
+  ((kbd "<M-S-up>")      'rails-lib:run-primary-switch)
+  ((kbd "<M-S-down>")    'rails-lib:run-secondary-switch)
+  ((rails-key "<up>")     'rails-lib:run-primary-switch)
+  ((rails-key "<down>")   'rails-lib:run-secondary-switch)
+  ((kbd "<C-return>")    'rails-goto-file-on-current-line)
+
+  ;; Scripts & SQL
+  ((rails-key "\C-c e")   'rails-script:generate)
+  ((rails-key "\C-c x")   'rails-script:destroy)
+  ((rails-key "\C-c s c") 'rails-script:console)
+  ((rails-key "\C-c s b") 'rails-script:breakpointer)
+  ((rails-key "\C-c s s") 'rails-run-sql)
+  ((rails-key "\C-c w s") 'rails-ws:toggle-start-stop)
+  ((rails-key "\C-c w d") 'rails-ws:start-development)
+  ((rails-key "\C-c w p") 'rails-ws:start-production)
+  ((rails-key "\C-c w t") 'rails-ws:start-test)
+  ((rails-key "\C-c w i") 'rails-ws:print-status)
+  ((rails-key "\C-c w a") 'rails-ws:auto-open-browser)
+
   ;; Rails finds
-  ((kbd "\C-c \C-f c") 'rails-find-controller)
-  ((kbd "\C-c \C-f v") 'rails-find-view)
-  ((kbd "\C-c \C-f l") 'rails-find-layout)
-  ((kbd "\C-c \C-f d") 'rails-find-db)
-  ((kbd "\C-c \C-f p") 'rails-find-public)
-  ((kbd "\C-c \C-f h") 'rails-find-helpers)
-  ((kbd "\C-c \C-f m") 'rails-find-models)
-  ((kbd "\C-c \C-f o") 'rails-find-config)
-  ((kbd "<f2> c") 'rails-find-controller)
-  ((kbd "<f2> v") 'rails-find-view)
-  ((kbd "<f2> l") 'rails-find-layout)
-  ((kbd "<f2> d") 'rails-find-db)
-  ((kbd "<f2> p") 'rails-find-public)
-  ((kbd "<f2> h") 'rails-find-helpers)
-  ((kbd "<f2> m") 'rails-find-models)
-  ((kbd "<f2> o") 'rails-find-config)
-  ((kbd "<C-return>") 'rails-goto-file-on-current-line)
-  ;;; Doc
-  ([f1]  'rails-search-doc))
+  ((rails-key "\C-c f m") 'rails-find:models)
+  ((rails-key "\C-c f c") 'rails-find:controller)
+  ((rails-key "\C-c f h") 'rails-find:helpers)
+  ((rails-key "\C-c f l") 'rails-find:layout)
+  ((rails-key "\C-c f s") 'rails-find:stylesheets)
+  ((rails-key "\C-c f j") 'rails-find:javascripts)
+  ((rails-key "\C-c f g") 'rails-find:migrate)
+  ((rails-key "\C-c f b") 'rails-find:lib)
+  ((rails-key "\C-c f t") 'rails-find:tasks)
+  ((rails-key "\C-c f v") 'rails-find:view)
+  ((rails-key "\C-c f d") 'rails-find:db)
+  ((rails-key "\C-c f p") 'rails-find:public)
+  ((rails-key "\C-c f f") 'rails-find:fixtures)
+  ((rails-key "\C-c f o") 'rails-find:config)
+  ;; Spec finds
+  ((rails-key "\C-c f r s") 'rails-find:spec)
+  ((rails-key "\C-c f r c") 'rails-find:spec-controllers)
+  ((rails-key "\C-c f r m") 'rails-find:spec-models)
+  ((rails-key "\C-c f r h") 'rails-find:spec-helpers)
+  ((rails-key "\C-c f r v") 'rails-find:spec-views)
+  ((rails-key "\C-c f r f") 'rails-find:spec-fixtures)
+
+  ((rails-key "\C-c d m") 'rails-rake:migrate)
+  ((rails-key "\C-c d v") 'rails-rake:migrate-to-version)
+  ((rails-key "\C-c d p") 'rails-rake:migrate-to-prev-version)
+  ((rails-key "\C-c d t") 'rails-rake:clone-development-db-to-test-db)
+
+
+
+  ;; Tests
+  ((rails-key "\C-c r")   'rails-rake:task)
+  ((rails-key "\C-c t")   'rails-test:run)
+  ((rails-key "\C-c .")   'rails-test:run-current)
+  ((rails-key "\C-c y i")   'rails-test:run-integration)
+  ((rails-key "\C-c y u")   'rails-test:run-units)
+  ((rails-key "\C-c y f")   'rails-test:run-functionals)
+  ((rails-key "\C-c #")   'rails-test:run-recent)
+  ((rails-key "\C-c y a")   'rails-test:run-all)
+
+  ;; Log files
+  ((rails-key "\C-c l")    'rails-log:open)
+  ((rails-key "\C-c o t")    'rails-log:open-test)
+  ((rails-key "\C-c o p")    'rails-log:open-production)
+  ((rails-key "\C-c o d")    'rails-log:open-development)
+
+  ;; Tags
+  ((rails-key "\C-c \C-t") 'rails-create-tags)
+
+  ;; Documentation
+  ([f1]                  'rails-search-doc)
+  ((kbd "<C-f1>")        'rails-browse-api-at-point)
+  ((rails-key "<f1>")     'rails-browse-api)
+  ((rails-key "/")        'rails-script:toggle-output-window)
+
+  ([f9]                  'rails-svn-status-into-root))
+
+;; Global keys and menubar
+
+(global-set-key (rails-key "\C-c j") 'rails-script:create-project)
+
+(when-bind (map (lookup-key global-map  [menu-bar file]))
+  (define-key-after
+    map
+    [create-rails-project]
+    '("Create Rails Project" . rails-script:create-project) 'insert-file))
 
 (provide 'rails-ui)

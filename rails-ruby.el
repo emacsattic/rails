@@ -1,4 +1,3 @@
-<<<<<<< .mine
 ;;; rails-ruby.el --- provide features for ruby-mode
 
 ;; Copyright (C) 2006 Dmitry Galinsky <dima dot exe at gmail dot com>
@@ -27,6 +26,33 @@
 
 ;;; Code:
 
+;; setup align for ruby-mode
+(require 'align)
+
+(defconst align-ruby-modes '(ruby-mode)
+  "align-perl-modes is a variable defined in `align.el'.")
+
+(defconst ruby-align-rules-list
+  '((ruby-comma-delimiter
+     (regexp . ",\\(\\s-*\\)[^/ \t\n]")
+     (modes  . align-ruby-modes)
+     (repeat . t))
+    (ruby-string-after-func
+     (regexp . "^\\s-*[a-zA-Z0-9.:?_]+\\(\\s-+\\)['\"]\\w+['\"]")
+     (modes  . align-ruby-modes)
+     (repeat . t))
+    (ruby-symbol-after-func
+     (regexp . "^\\s-*[a-zA-Z0-9.:?_]+\\(\\s-+\\):\\w+")
+     (modes  . align-ruby-modes)))
+  "Alignment rules specific to the ruby mode.
+See the variable `align-rules-list' for more details.")
+
+(add-to-list 'align-perl-modes 'ruby-mode)
+(add-to-list 'align-dq-string-modes 'ruby-mode)
+(add-to-list 'align-sq-string-modes 'ruby-mode)
+(add-to-list 'align-open-comment-modes 'ruby-mode)
+(dolist (it ruby-align-rules-list)
+  (add-to-list 'align-rules-list it))
 
 ;; hideshow ruby support
 
@@ -132,12 +158,8 @@
              (quoted-str (buffer-substring-no-properties start-quote end-quote))
              (symbol-str (buffer-substring-no-properties start end)))
         (cond
-         ((string-match "^\'\\w+\'$" quoted-str)
-          (setq quoted-str (substring quoted-str 1 (- (length quoted-str) 1)))
-          (kill-region start-quote end-quote)
-          (goto-char start-quote)
-          (insert (concat "\"" quoted-str "\"")))
-         ((string-match "^\"\\w+\"$" quoted-str)
+         ((or (string-match "^\"\\w+\"$" quoted-str)
+              (string-match "^\'\\w+\'$" quoted-str))
           (setq quoted-str (substring quoted-str 1 (- (length quoted-str) 1)))
           (kill-region start-quote end-quote)
           (goto-char start-quote)
@@ -178,40 +200,4 @@
           (el4r-ruby-eval (format cmd (word-at-point) prefix prefix)))))))
 
 
-=======
-;;; rails-ruby.el --- provide features for support rails in ruby-mode
-
-;; Copyright (C) 2006 Galinsky Dmitry <dima dot exe at gmail dot com>
-
-;; Keywords: ruby rails languages oop
-;; $URL$
-;; $Id$
-
-;;; License
-
-;; This program is free software; you can redistribute it and/or
-;; modify it under the terms of the GNU General Public License
-;; as published by the Free Software Foundation; either version 2
-;; of the License, or (at your option) any later version.
-
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
-
-;; You should have received a copy of the GNU General Public License
-;; along with this program; if not, write to the Free Software
-;; Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-;;; Code:
-
-(defun rails-minor-mode-for-ruby-menubar (map)
-  "Apply keys and menu items for MAP")
-
-(defun rails-minor-mode-for-ruby (keymap menubar)
-  "Apply fetures for ruby-mode"
-    (define-key menubar [rails switch-view-action] '("Switch Action/View" . rails-switch-view-action)))
-
-
->>>>>>> .r230
 (provide 'rails-ruby)
